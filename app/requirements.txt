@@ -1,0 +1,4 @@
+eventlet
+flask
+gunicorn
+psycopg2
