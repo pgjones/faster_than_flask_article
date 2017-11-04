@@ -1,4 +1,4 @@
-eventlet
-flask
+asyncpg
 gunicorn
-psycopg2
+quart
+uvloop

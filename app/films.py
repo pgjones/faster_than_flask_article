@@ -1,21 +1,20 @@
-from flask import abort, Blueprint, current_app, jsonify, request
+from quart import abort, Blueprint, current_app, jsonify, request
 
 blueprint = Blueprint('films', __name__)
 
 
 @blueprint.route('/films/')
-def get_films():
+async def get_films():
     minimal_year = request.args.get('year.gt', 2000)
     films = {}
-    with current_app.pool.acquire() as connection:
-        with connection.cursor() as cursor:
-            cursor.execute(
+    async with current_app.pool.acquire() as connection:
+        async with connection.transaction():
+            async for film in connection.cursor(
                 """SELECT film_id, release_year, title
                      FROM film
-                    WHERE release_year > %s""",
-                (minimal_year,),
-            )
-            for film in cursor:
+                    WHERE release_year > $1""",
+                minimal_year,
+            ):
                 films[film['film_id']] = {
                     'release_year': film['release_year'],
                     'title': film['title'],
@@ -24,16 +23,15 @@ def get_films():
 
 
 @blueprint.route('/films/<int:id>/')
-def get_film(id):
-    with current_app.pool.acquire() as connection:
-        with connection.cursor() as cursor:
-            cursor.execute(
+async def get_film(id):
+    async with current_app.pool.acquire() as connection:
+        async with connection.transaction():
+            result = await connection.fetchrow(
                 """SELECT film_id, release_year, title
                      FROM film
-                    WHERE film_id = %s""",
-                (id,),
+                    WHERE film_id = $1""",
+                id,
             )
-            result = cursor.fetchone()
     if result is not None:
         return jsonify({
             'film_id': result['film_id'],
